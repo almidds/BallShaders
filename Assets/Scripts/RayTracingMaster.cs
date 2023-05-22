@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class RayTracingMaster : MonoBehaviour
@@ -16,6 +17,11 @@ public class RayTracingMaster : MonoBehaviour
     // Anti-aliasing
     private uint _currentSample = 0;
     private Material _addMaterial;
+
+    [SerializeField]
+    Light directionalLight;
+
+    private List<Transform> _transformsToWatch = new List<Transform>();
 
     private void OnRenderImage(RenderTexture src, RenderTexture dest) {
         SetShaderParameters();
@@ -46,20 +52,32 @@ public class RayTracingMaster : MonoBehaviour
                 _target.Release();
             }
 
-            _target = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+            _target = new RenderTexture(Screen.width,
+                                        Screen.height,
+                                        0,
+                                        RenderTextureFormat.ARGBFloat,
+                                        RenderTextureReadWrite.Linear);
             _target.enableRandomWrite = true;
             _target.Create();
         }
     }
+
+
+
     // Start is called before the first frame update
     private void Awake(){
         _camera = GetComponent<Camera>();
+
+        _transformsToWatch.Add(transform);
+        _transformsToWatch.Add(directionalLight.transform);
     }
 
     private void Update(){
-        if(transform.hasChanged){
-            _currentSample = 0;
-            transform.hasChanged = false;
+        foreach(Transform t in _transformsToWatch){
+            if(t.hasChanged){
+                _currentSample = 0;
+                t.hasChanged = false;
+            }
         }
     }
 
@@ -68,6 +86,14 @@ public class RayTracingMaster : MonoBehaviour
         rayTracingShader.SetMatrix("_CameraInverseProjection", _camera.projectionMatrix.inverse);
         rayTracingShader.SetTexture(0, "_SkyboxTexture", skyboxTexture);
         rayTracingShader.SetVector("_PixelOffset", new Vector2(Random.value, Random.value));
+
+        Vector3 sceneLight = directionalLight.transform.forward;
+        rayTracingShader.SetVector("_DirectionalLight", new Vector4(sceneLight.x,
+                                                                    sceneLight.y,
+                                                                    sceneLight.z,
+                                                                    directionalLight.intensity));
+
+        
 
     }
 }

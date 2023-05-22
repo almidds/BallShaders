@@ -12,6 +12,8 @@ SamplerState sampler_SkyboxTexture;
 
 float2 _PixelOffset;
 
+float4 _DirectionalLight;
+
 struct Ray{
     float3 origin;
     float3 direction;
@@ -83,21 +85,30 @@ void IntersectSphere(Ray ray, inout RayHit bestHit, float4 sphere){
 RayHit Trace(Ray ray){
     RayHit bestHit = CreateRayHit();
     IntersectGroundPlane(ray, bestHit);
-    IntersectSphere(ray, bestHit, float4(0, 3.0f, 0, 1.0f));
-    IntersectSphere(ray, bestHit, float4(2.0f, 0, 0, 1.0f));
+    IntersectSphere(ray, bestHit, float4(-4.0f, 1.5f, 0, 1.0f));
+    IntersectSphere(ray, bestHit, float4(0, 2.0f, 0, 1.0f));
+    IntersectSphere(ray, bestHit, float4(4.0f, 1.5f, 0, 1.0f));
     return bestHit;
 }
 
 float3 Shade(inout Ray ray, RayHit hit){
     if(hit.distance < 1.#INF){
         float3 specular = float3(0.6f, 0.6f, 0.6f);
+        float3 albedo = float3(0.8f, 0.8f, 0.8f);
 
         // Reflect the ray and remove energy from ray
         ray.origin = hit.position + hit.normal * 0.001f; // removes self-occlusion
         ray.direction = reflect(ray.direction, hit.normal);
         ray.energy *= specular;
 
-        return float3(0.0f, 0.0f, 0.0f);
+        bool shadow = false;
+        Ray shadowRay = CreateRay(hit.position + hit.normal * 0.001f, -1 * _DirectionalLight.xyz);
+        RayHit shadowHit = Trace(shadowRay);
+        if(shadowHit.distance != 1.#INF){
+            return float3(0.0f, 0.0f, 0.0f);
+        }
+
+        return saturate(dot(hit.normal, _DirectionalLight.xyz) * -1) * _DirectionalLight.w * albedo;
     }
     else{
 
