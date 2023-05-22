@@ -13,12 +13,17 @@ public class RayTracingMaster : MonoBehaviour
     [SerializeField]
     private Texture skyboxTexture;
 
+    // Anti-aliasing
+    private uint _currentSample = 0;
+    private Material _addMaterial;
+
     private void OnRenderImage(RenderTexture src, RenderTexture dest) {
         SetShaderParameters();
         Render(dest);
     }
 
     private void Render(RenderTexture dest){
+        // Compute Shader
         InitRenderTexture();
 
         rayTracingShader.SetTexture(0, "Result", _target);
@@ -26,7 +31,13 @@ public class RayTracingMaster : MonoBehaviour
         int threadGroupsY = Mathf.CeilToInt(Screen.height / 8.0f);
         rayTracingShader.Dispatch(0, threadGroupsX, threadGroupsY, 1);
 
-        Graphics.Blit(_target, dest);
+        // Anti-aliasing shader
+        if(_addMaterial == null)
+            _addMaterial = new Material(Shader.Find("Hidden/AddShader"));
+        _addMaterial.SetFloat("_Sample", _currentSample);
+
+        Graphics.Blit(_target, dest, _addMaterial);
+        _currentSample++;
     }
 
     private void InitRenderTexture(){
@@ -45,9 +56,18 @@ public class RayTracingMaster : MonoBehaviour
         _camera = GetComponent<Camera>();
     }
 
+    private void Update(){
+        if(transform.hasChanged){
+            _currentSample = 0;
+            transform.hasChanged = false;
+        }
+    }
+
     private void SetShaderParameters(){
         rayTracingShader.SetMatrix("_CameraToWorld", _camera.cameraToWorldMatrix);
         rayTracingShader.SetMatrix("_CameraInverseProjection", _camera.projectionMatrix.inverse);
         rayTracingShader.SetTexture(0, "_SkyboxTexture", skyboxTexture);
+        rayTracingShader.SetVector("_PixelOffset", new Vector2(Random.value, Random.value));
+
     }
 }

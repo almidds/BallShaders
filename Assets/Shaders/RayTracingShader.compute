@@ -10,6 +10,8 @@ float4x4 _CameraInverseProjection;
 Texture2D<float4> _SkyboxTexture;
 SamplerState sampler_SkyboxTexture;
 
+float2 _PixelOffset;
+
 struct Ray{
     float3 origin;
     float3 direction;  
@@ -80,6 +82,7 @@ RayHit Trace(Ray ray){
     RayHit bestHit = CreateRayHit();
     IntersectGroundPlane(ray, bestHit);
     IntersectSphere(ray, bestHit, float4(0, 3.0f, 0, 1.0f));
+    IntersectSphere(ray, bestHit, float4(2.0f, 0, 0, 1.0f));
     return bestHit;
 }
 
@@ -101,7 +104,7 @@ void CSMain (uint3 id : SV_DispatchThreadID){
     Result.GetDimensions(width, height);
 
     // Transform pixels to (-1, 1) range
-    float2 uv = float2((id.xy + float2(0.5f, 0.5f)) / float2(width, height) * 2.0f - 1.0f);
+    float2 uv = float2((id.xy + _PixelOffset) / float2(width, height) * 2.0f - 1.0f);
 
     Ray ray = CreateCameraRay(uv);
 
