@@ -14,7 +14,8 @@ float2 _PixelOffset;
 
 struct Ray{
     float3 origin;
-    float3 direction;  
+    float3 direction;
+    float3 energy;
 };
 
 struct RayHit{
@@ -27,6 +28,7 @@ Ray CreateRay(float3 origin, float3 direction){
     Ray ray;
     ray.origin = origin;
     ray.direction = direction;
+    ray.energy = float3(1.0f, 1.0f, 1.0f);
     return ray;
 }
 
@@ -88,9 +90,18 @@ RayHit Trace(Ray ray){
 
 float3 Shade(inout Ray ray, RayHit hit){
     if(hit.distance < 1.#INF){
-        return hit.normal * 0.5f + 0.5f;
+        float3 specular = float3(0.6f, 0.6f, 0.6f);
+
+        // Reflect the ray and remove energy from ray
+        ray.origin = hit.position + hit.normal * 0.001f; // removes self-occlusion
+        ray.direction = reflect(ray.direction, hit.normal);
+        ray.energy *= specular;
+
+        return float3(0.0f, 0.0f, 0.0f);
     }
     else{
+
+        ray.energy = 0.0f;
         // Convert cartesian to spherical coordinates
         float theta = -acos(ray.direction.y) / PI;
         float phi = -atan2(ray.direction.x, -ray.direction.z) / PI * 0.5f;
@@ -108,8 +119,14 @@ void CSMain (uint3 id : SV_DispatchThreadID){
 
     Ray ray = CreateCameraRay(uv);
 
-    // Trace and shade
-    RayHit hit = Trace(ray);
-    float3 result = Shade(ray, hit);
+    float3 result = float3(0, 0, 0);
+    for(int i = 0; i < 8; i++){
+        RayHit hit = Trace(ray);
+        result += ray.energy * Shade(ray, hit);
+
+        if(!any(ray.energy)){
+            break;
+        }
+    }
     Result[id.xy] = float4(result, 1);
 }
